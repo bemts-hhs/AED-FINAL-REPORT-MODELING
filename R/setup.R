@@ -34,11 +34,23 @@ aed_final <- readxl::read_excel(aed_file)
 session_init <- sessioninfo::session_info()
 
 ### convert to long format with one-to-one fields ----
-session <- session_init |> 
-  as.data.frame() |> 
-  dplyr::select(platform.version, platform.os, platform.system, platform.ui, platform.language, platform.collate, platform.ctype, platform.tz, platform.date, platform.pandoc, platform.quarto) |> 
-  dplyr::distinct() |> 
-  dplyr::rename_all(~ stringr::str_remove(., "platform\\.")) |> 
+session <- session_init |>
+  as.data.frame() |>
+  dplyr::select(
+    platform.version,
+    platform.os,
+    platform.system,
+    platform.ui,
+    platform.language,
+    platform.collate,
+    platform.ctype,
+    platform.tz,
+    platform.date,
+    platform.pandoc,
+    platform.quarto
+  ) |>
+  dplyr::distinct() |>
+  dplyr::rename_all(~ stringr::str_remove(., "platform\\.")) |>
   tidyr::pivot_longer(cols = tidyselect::everything())
 
 ### write the session object to disk ----
