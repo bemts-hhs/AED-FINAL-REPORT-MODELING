@@ -200,8 +200,8 @@ aed_effects_pct_clean <- aed_effects_pct |>
     term_clean = ifelse(sig, paste(term_clean, "[*]"), term_clean),
     term_clean = forcats::fct_reorder(term_clean, estimate),
     .before = term
-  ) |> 
-  dplyr::select(-term) |> 
+  ) |>
+  dplyr::select(-term) |>
   dplyr::rename(term = term_clean)
 
 ## create the forest plot ----
@@ -257,18 +257,3 @@ ggplot2::ggsave(
   width = 9.3,
   height = 5.5
 )
-
-aed_final |> 
-  dplyr::distinct(unique_incident_id, .keep_all = T) |> 
-  dplyr::count(urbanicity, survival, sort = T) |> 
-  tidyr::pivot_wider(id_cols = urbanicity, names_from = survival, values_from = n) |> 
-  dplyr::mutate(
-    urbanicity = dplyr::coalesce(urbanicity, "Unknown"), 
-    Deceased = dplyr::coalesce(Deceased, 0)
-  ) |> 
-  dplyr::mutate(
-    pct = Survived / (Survived + Deceased), 
-    pct = round(pct * 100, digits = 2)
-  ) |> 
-  dplyr::arrange(desc(pct)) |> 
-  dplyr::mutate(pct_all = Survived / (sum(Deceased) + sum(Survived)))
