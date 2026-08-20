@@ -56,5 +56,5 @@ The modeling arm generates:
 * A cleaned table of adjusted odds ratios with 95% CIs and scenario probabilities.
 * A forest plot saved to: `./output/aed_or_forest_plot.png`
 
-Purpose of This Modeling Arm
+## Purpose of This Modeling Arm of the Report
 This section of the AED project provides quantitative insight into survival after LEO AED deployment. The modeling results support interpretation of operational performance, identification of factors associated with survival, and development of evidence‑based recommendations for Iowa’s emergency response system following AED placement across law enforcement agencies.
