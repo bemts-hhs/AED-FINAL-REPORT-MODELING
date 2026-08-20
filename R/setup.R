@@ -19,6 +19,7 @@
 # pak::pak("RcppEigen")
 # pak::pak("themis")
 # pak::pak("lorax")
+# pak::pak("sessioninfo")
 
 ## access the environment variable ----
 aed_file <- Sys.getenv("aed_path")

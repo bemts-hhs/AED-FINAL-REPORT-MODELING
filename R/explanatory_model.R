@@ -142,11 +142,92 @@ scenario_probability <- function(baseline_prob, OR) {
 ## Build explanatory OR table with % change in odds + scenario probabilities ----
 aed_effects_pct <- aed_effects |>
   dplyr::mutate(
-    pct_change = (estimate - 1) * 100,
-    pct_low = (conf.low - 1) * 100,
-    pct_high = (conf.high - 1) * 100,
+    pct_change = (estimate - 1),
+    pct_low = (conf.low - 1),
+    pct_high = (conf.high - 1),
     prob_baseline = baseline_prob,
     prob_scenario = scenario_probability(baseline_prob, estimate),
     prob_lower = scenario_probability(baseline_prob, conf.low),
     prob_high = scenario_probability(baseline_prob, conf.high)
   )
+
+## vector to assist in renaming terms in the aed_effects_pct table ----
+term_labels <- c(
+  "(Intercept)" = "Baseline (Intercept)",
+  "age_years" = "Age (years)",
+  "sexF" = "Female",
+  "witnessedTRUE" = "Witnessed arrest",
+  "bystander_cprTRUE" = "Bystander CPR",
+  "call_typeCardiac Arrest" = "Cardiac arrest call",
+  "call_typeOverdose" = "Overdose call",
+  "call_typeother" = "Other Cause call",
+  "urbanicityMicropolitan" = "Micropolitan",
+  "urbanicityRural" = "Rural",
+  "urbanicityother" = "Unknown Urbanicity",
+  "shock_no_shock" = "# shocks delivered",
+  "time_from_call_to_patient" = "Time: Call to patient",
+  "time_from_call_to_aed_on" = "Time: Call to AED on",
+  "time_at_patient_to_end_aed" = "Time: AED duration"
+)
+
+## apply new labels to the effects table ----
+aed_effects_pct_clean <- aed_effects_pct |>
+  dplyr::filter(term != "(Intercept)") |>
+  dplyr::mutate(
+    term_clean = term_labels[term],
+    term_clean = ifelse(sig, paste(term_clean, "[*]"), term_clean),
+    term_clean = forcats::fct_reorder(term_clean, estimate)
+  )
+
+## create the forest plot ----
+main_effects_plot <- ggplot2::ggplot(
+  aed_effects_pct_clean,
+  ggplot2::aes(x = estimate, y = term_clean)
+) +
+  ggplot2::geom_vline(
+    xintercept = c(0.1, 1.0, 10.0),
+    linetype = "dashed",
+    color = "#B9E1DA"
+  ) +
+  ggplot2::geom_point(size = 3, color = "steelblue") +
+  ggplot2::geom_errorbarh(
+    ggplot2::aes(xmin = conf.low, xmax = conf.high),
+    height = 0.25,
+    color = "steelblue"
+  ) +
+  ggplot2::scale_x_log10() +
+  ggplot2::labs(
+    x = "Adjusted Odds Ratio (log10 scale)",
+    y = NULL,
+    title = "Adjusted Odds Ratios for Survival After AED Deployment",
+    subtitle = "95% confidence intervals shown as horizontal bars",
+    caption = "\n`*` indicates statistical significance at the 0.05 level."
+  ) +
+  ggplot2::theme_minimal(base_size = 16, base_family = "Work Sans") +
+  ggplot2::theme(
+    panel.grid = ggplot2::element_blank(),
+    text = ggplot2::element_text(
+      family = "Work Sans",
+      color = "#4D4D4F"
+    ),
+    plot.title = ggplot2::element_text(
+      size = 18,
+      color = "#19405B",
+      face = "bold"
+    ),
+    plot.subtitle = ggplot2::element_text(size = 16, color = "#F27026"),
+    plot.caption = ggplot2::element_text(
+      size = 12,
+      hjust = 0,
+      color = "#F27026",
+      face = "bold"
+    )
+  )
+
+## save the forest plot ----
+ggplot2::ggsave(
+  filename = "./output/aed_or_forest_plot.png",
+  plot = main_effects_plot,
+  width = 9.3,
+  height = 5.5
+)
