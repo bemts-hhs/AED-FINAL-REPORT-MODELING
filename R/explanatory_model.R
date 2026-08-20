@@ -18,10 +18,18 @@ nominal_vars <- aed_final |>
 ## ensure applicable columns are factors ----
 # this helps make sure training set and test set have all the same factor levels
 aed_final_aligned <- aed_final |>
+  dplyr::filter(!is.na(sex)) |>
   dplyr::mutate(
-    dplyr::across(
-      all_of(nominal_vars),
-      ~ forcats::as_factor(.)
+    sex = forcats::fct(sex, levels = c("M", "F")),
+    call_type = dplyr::coalesce(call_type, "Unknown"),
+    call_type = forcats::fct(
+      call_type,
+      levels = c("Cardiac Arrest", "Overdose", "Other Cause", "Unknown")
+    ),
+    urbanicity = dplyr::coalesce(urbanicity, "Unknown"),
+    urbanicity = forcats::fct(
+      urbanicity,
+      levels = c("Metropolitan", "Micropolitan", "Rural", "Unknown")
     ),
     survival = forcats::fct_relevel(survival, c("Deceased", "Survived"))
   )
@@ -45,8 +53,8 @@ aed_recipe <- recipes::recipe(
     time_at_patient_to_end_aed,
   data = aed_final_aligned
 ) |>
-  recipes::step_unknown(recipes::all_nominal_predictors()) |>
-  recipes::step_other(recipes::all_nominal_predictors(), threshold = 0.05)
+  recipes::step_impute_mode(recipes::all_nominal_predictors()) |>
+  recipes::step_impute_mean(recipes::all_numeric_predictors())
 
 ###___________________________________________________________________________
 # Set up the model specification ----
@@ -122,13 +130,26 @@ baseline_scenario <- baseline_scenario <- tibble::tibble(
 ## get predicted probability for the baseline ----
 # baseline is derived as the predicted probability of survival for an individual
 # with all variables set to their baseline
+
+### baseline probability ----
 baseline_prob <- predict(
   aed_fit,
   new_data = baseline_scenario,
   type = "prob"
 )$.pred_Survived
 
-## define a function to compute scenario probabilities using the odds ratio
+### baseline probabilities with 95% CI
+## get predicted probability for the baseline ----
+# baseline is derived as the predicted probability of survival for an individual
+# with all variables set to their baseline
+baseline_tbl <- marginaleffects::predictions(
+  aed_fit,
+  newdata = baseline_scenario,
+  type = "prob"
+) |>
+  broom::tidy()
+
+## define a function to compute scenario probabilities using the odds ratio ----
 #' Compute scenario probability using OR relative to baseline
 #' baseline_prob - numeric baseline probability
 #' OR - odds ratio for variable
@@ -158,12 +179,12 @@ term_labels <- c(
   "sexF" = "Female",
   "witnessedTRUE" = "Witnessed arrest",
   "bystander_cprTRUE" = "Bystander CPR",
-  "call_typeCardiac Arrest" = "Cardiac arrest call",
   "call_typeOverdose" = "Overdose call",
-  "call_typeother" = "Other Cause call",
+  "call_typeOther Cause" = "Other Cause call",
+  "call_typeUnknown" = "Unknown call type",
   "urbanicityMicropolitan" = "Micropolitan",
   "urbanicityRural" = "Rural",
-  "urbanicityother" = "Unknown Urbanicity",
+  "urbanicityUnknown" = "Unknown Urbanicity",
   "shock_no_shock" = "# shocks delivered",
   "time_from_call_to_patient" = "Time: Call to patient",
   "time_from_call_to_aed_on" = "Time: Call to AED on",
@@ -173,11 +194,15 @@ term_labels <- c(
 ## apply new labels to the effects table ----
 aed_effects_pct_clean <- aed_effects_pct |>
   dplyr::filter(term != "(Intercept)") |>
+  dplyr::select(term, estimate, p.value:prob_high) |>
   dplyr::mutate(
     term_clean = term_labels[term],
     term_clean = ifelse(sig, paste(term_clean, "[*]"), term_clean),
-    term_clean = forcats::fct_reorder(term_clean, estimate)
-  )
+    term_clean = forcats::fct_reorder(term_clean, estimate),
+    .before = term
+  ) |> 
+  dplyr::select(-term) |> 
+  dplyr::rename(term = term_clean)
 
 ## create the forest plot ----
 main_effects_plot <- ggplot2::ggplot(
@@ -224,6 +249,7 @@ main_effects_plot <- ggplot2::ggplot(
     )
   )
 
+
 ## save the forest plot ----
 ggplot2::ggsave(
   filename = "./output/aed_or_forest_plot.png",
@@ -231,3 +257,18 @@ ggplot2::ggsave(
   width = 9.3,
   height = 5.5
 )
+
+aed_final |> 
+  dplyr::distinct(unique_incident_id, .keep_all = T) |> 
+  dplyr::count(urbanicity, survival, sort = T) |> 
+  tidyr::pivot_wider(id_cols = urbanicity, names_from = survival, values_from = n) |> 
+  dplyr::mutate(
+    urbanicity = dplyr::coalesce(urbanicity, "Unknown"), 
+    Deceased = dplyr::coalesce(Deceased, 0)
+  ) |> 
+  dplyr::mutate(
+    pct = Survived / (Survived + Deceased), 
+    pct = round(pct * 100, digits = 2)
+  ) |> 
+  dplyr::arrange(desc(pct)) |> 
+  dplyr::mutate(pct_all = Survived / (sum(Deceased) + sum(Survived)))

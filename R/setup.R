@@ -19,6 +19,7 @@ pak::pak("RcppArmadillo")
 pak::pak("RcppEigen")
 pak::pak("themis")
 pak::pak("lorax")
+pak::pak("marginaleffects")
 pak::pak("sessioninfo")
 
 ## access the environment variable ----
