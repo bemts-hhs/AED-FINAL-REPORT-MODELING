@@ -1,5 +1,6 @@
 ###___________________________________________________________________________
 # Some data manipulation prior to pre-processing ----
+# This was a testing process and this material will not appear in the report
 ###___________________________________________________________________________
 
 ## Identify all nominal predictors BEFORE recipe ----
